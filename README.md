@@ -2,6 +2,34 @@
 
 A local, free AI agent that answers retail analytics questions by combining RAG over local docs and SQL over a local SQLite database (Northwind).
 
+[![CI](https://github.com/MuhammadWaleed12/Retail-Analytics-Copilot/actions/workflows/ci.yml/badge.svg)](https://github.com/MuhammadWaleed12/Retail-Analytics-Copilot/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Local-first](https://img.shields.io/badge/LLM-local--first-2ea44f)](#local-first-design)
+
+## Why this project
+
+Retail questions often span two different knowledge sources: structured facts in a database and business rules in documents. This project demonstrates an inspectable, local-first workflow that routes each question to SQL, retrieval, or both, and returns the executed SQL, citations, confidence, and a short explanation alongside the answer.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Q[Question] --> R{DSPy router}
+    R -->|rag| D[TF-IDF document retrieval]
+    R -->|sql| N[NL-to-SQL]
+    R -->|hybrid| D
+    D --> P[Constraint planner]
+    P --> N
+    N --> E[SQLite executor]
+    E -->|SQL error or invalid output| X[Repair loop]
+    X -->|maximum 2 retries| N
+    D --> S[Answer synthesizer]
+    E --> S
+    S --> O[Typed answer + citations + confidence]
+```
+
+The repository is intentionally small enough to audit end to end: documents and the sample database stay local, retrieval uses TF-IDF, and the default model runs through Ollama.
+
 ## Project Structure
 
 ```
@@ -72,18 +100,38 @@ The graph routes questions based on type:
 
 ## Setup
 
-1. Install dependencies:
+### Prerequisites
+
+- Python 3.10 or newer
+- [Ollama](https://ollama.com/) for full agent runs
+- `sqlite3` and `curl` only if you want to rebuild the included sample database
+
+### Quick start
+
+1. Clone the repository and create a virtual environment:
+
 ```bash
-pip install -r requirements.txt
+git clone https://github.com/MuhammadWaleed12/Retail-Analytics-Copilot.git
+cd Retail-Analytics-Copilot
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 ```
 
-2. Install Ollama and pull the model:
+2. Install dependencies:
+
 ```bash
-# Install from https://ollama.com
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+3. Pull the default local model:
+
+```bash
 ollama pull phi3.5:3.8b-mini-instruct-q4_K_M
 ```
 
-3. Download Northwind database (already included, but to re-download):
+The Northwind sample database is already included. To rebuild it from the upstream dataset:
+
 ```bash
 mkdir -p data
 curl -L -o data/northwind.sqlite https://raw.githubusercontent.com/jpwhite3/northwind-SQLite3/main/dist/northwind.db
@@ -99,7 +147,7 @@ SQL
 
 ## Usage
 
-Run the agent on evaluation questions:
+Make sure Ollama is running, then process the included evaluation questions:
 
 ```bash
 python run_agent_hybrid.py \
@@ -124,13 +172,31 @@ Each line in `outputs_hybrid.jsonl` follows this structure:
 
 ## Testing
 
-The evaluation file contains 6 test questions covering:
-- RAG-only (policy questions)
-- SQL-only (top products by revenue)
-- Hybrid (campaign dates + SQL, KPI definitions + SQL)
+Run the fast unit suite (no Ollama service required):
 
-Run with the CLI command above to generate outputs.
+```bash
+python -m unittest discover -s tests -v
+```
 
+The unit tests cover SQLite schema discovery, query execution and errors, plus document loading, ranking, unknown terms, and empty-document behavior. GitHub Actions runs them on Python 3.10, 3.11, and 3.12.
 
+The evaluation file contains six end-to-end questions covering:
 
+- RAG-only policy questions
+- SQL-only analytics such as top products by revenue
+- Hybrid questions that combine campaign dates or KPI definitions with SQL
 
+## Local-first design
+
+- No hosted vector database is required; retrieval runs over files in `docs/`.
+- No hosted LLM API is required; the default model is served locally by Ollama.
+- Answers expose their SQL and citations so results can be inspected instead of treated as a black box.
+
+## Limitations
+
+- TF-IDF is lexical retrieval and will miss some semantic matches.
+- The bundled database is sample data, not a production retail warehouse.
+- Confidence is a workflow heuristic based on retrieval, SQL success, and repairs; it is not a calibrated probability.
+- Generated SQL should remain read-only before the project is connected to a non-sample database.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development and pull-request workflow.
