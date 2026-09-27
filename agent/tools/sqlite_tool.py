@@ -59,10 +59,14 @@ class SQLiteTool:
         try:
             cursor.execute(query)
             
-            if query.strip().upper().startswith('SELECT'):
+            # SQLite metadata identifies result sets, including WITH queries,
+            # commented SELECTs, and writes with a RETURNING clause.
+            if cursor.description is not None:
                 rows = cursor.fetchall()
                 columns = [description[0] for description in cursor.description]
                 result = [dict(row) for row in rows]
+                # Consume RETURNING rows before committing the write.
+                conn.commit()
                 conn.close()
                 return result, columns, None
             else:
@@ -82,7 +86,6 @@ class SQLiteTool:
         tables = [row[0] for row in cursor.fetchall()]
         conn.close()
         return tables
-
 
 
 

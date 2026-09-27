@@ -51,6 +51,53 @@ class SQLiteToolTests(unittest.TestCase):
             [{"id": 1, "total": 12.5}, {"id": 2, "total": 30.0}],
         )
 
+    def test_returns_results_independent_of_query_prefix(self):
+        database = self.directory / "test.sqlite"
+        create_database(database)
+        tool = SQLiteTool(str(database))
+
+        for query in (
+            (
+                "WITH totals AS (SELECT total FROM Orders) "
+                "SELECT SUM(total) AS revenue FROM totals"
+            ),
+            "-- Revenue report\nSELECT SUM(total) AS revenue FROM Orders",
+            "/* Revenue report */ SELECT SUM(total) AS revenue FROM Orders",
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(
+                    tool.execute_query(query),
+                    ([{"revenue": 42.5}], ["revenue"], None),
+                )
+
+    def test_empty_cte_preserves_column_names(self):
+        database = self.directory / "test.sqlite"
+        create_database(database)
+        tool = SQLiteTool(str(database))
+
+        self.assertEqual(
+            tool.execute_query(
+                "WITH empty AS (SELECT total FROM Orders WHERE 0) "
+                "SELECT total FROM empty"
+            ),
+            ([], ["total"], None),
+        )
+
+    @unittest.skipIf(sqlite3.sqlite_version_info < (3, 35, 0), "RETURNING needs SQLite 3.35+")
+    def test_returning_rows_are_fetched_and_write_is_committed(self):
+        database = self.directory / "test.sqlite"
+        create_database(database)
+        tool = SQLiteTool(str(database))
+
+        self.assertEqual(
+            tool.execute_query("INSERT INTO Orders (total) VALUES (45.0) RETURNING total"),
+            ([{"total": 45.0}], ["total"], None),
+        )
+        self.assertEqual(
+            tool.execute_query("SELECT COUNT(*) AS count FROM Orders")[0],
+            [{"count": 3}],
+        )
+
     def test_commits_writes_and_reports_invalid_sql(self):
         database = self.directory / "test.sqlite"
         create_database(database)
