@@ -83,34 +83,51 @@ class SQLiteToolTests(unittest.TestCase):
             ([], ["total"], None),
         )
 
+    def test_rejects_database_mutations(self):
+        database = self.directory / "test.sqlite"
+        create_database(database)
+        tool = SQLiteTool(str(database))
+
+        for query in (
+            "INSERT INTO Orders (total) VALUES (45.0)",
+            "UPDATE Orders SET total = 0",
+            "DELETE FROM Orders",
+            "DROP TABLE Orders",
+        ):
+            with self.subTest(query=query):
+                rows, columns, error = tool.execute_query(query)
+                self.assertEqual((rows, columns), ([], []))
+                self.assertIn("readonly", error.lower())
+
+        self.assertEqual(
+            tool.execute_query("SELECT COUNT(*) AS count FROM Orders")[0],
+            [{"count": 2}],
+        )
+
     @unittest.skipIf(sqlite3.sqlite_version_info < (3, 35, 0), "RETURNING needs SQLite 3.35+")
-    def test_returning_rows_are_fetched_and_write_is_committed(self):
+    def test_rejects_writes_with_returning(self):
         database = self.directory / "test.sqlite"
         create_database(database)
         tool = SQLiteTool(str(database))
 
-        self.assertEqual(
-            tool.execute_query("INSERT INTO Orders (total) VALUES (45.0) RETURNING total"),
-            ([{"total": 45.0}], ["total"], None),
-        )
-        self.assertEqual(
-            tool.execute_query("SELECT COUNT(*) AS count FROM Orders")[0],
-            [{"count": 3}],
+        rows, columns, error = tool.execute_query(
+            "INSERT INTO Orders (total) VALUES (45.0) RETURNING total"
         )
 
-    def test_commits_writes_and_reports_invalid_sql(self):
+        self.assertEqual((rows, columns), ([], []))
+        self.assertIn("readonly", error.lower())
+        self.assertEqual(
+            tool.execute_query("SELECT COUNT(*) AS count FROM Orders")[0],
+            [{"count": 2}],
+        )
+
+    def test_reports_invalid_sql(self):
         database = self.directory / "test.sqlite"
         create_database(database)
         tool = SQLiteTool(str(database))
-
-        result = tool.execute_query("INSERT INTO Orders (total) VALUES (45.0)")
-        self.assertEqual(result, ([], [], None))
-        self.assertEqual(
-            tool.execute_query("SELECT COUNT(*) AS count FROM Orders")[0],
-            [{"count": 3}],
-        )
 
         rows, columns, error = tool.execute_query("SELECT * FROM does_not_exist")
+
         self.assertEqual(rows, [])
         self.assertEqual(columns, [])
         self.assertIn("no such table", error)
