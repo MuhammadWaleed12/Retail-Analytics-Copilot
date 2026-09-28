@@ -178,7 +178,7 @@ Run the fast unit suite (no Ollama service required):
 python -m unittest discover -s tests -v
 ```
 
-The unit tests cover SQLite schema discovery, query execution and errors, plus document loading, ranking, unknown terms, and empty-document behavior. GitHub Actions runs them on Python 3.10, 3.11, and 3.12.
+The unit tests cover SQLite schema discovery, query execution, read-only mutation rejection, and errors, plus document loading, ranking, unknown terms, and empty-document behavior. GitHub Actions runs them on Python 3.10, 3.11, and 3.12.
 
 The evaluation file contains six end-to-end questions covering:
 
@@ -197,6 +197,6 @@ The evaluation file contains six end-to-end questions covering:
 - TF-IDF is lexical retrieval and will miss some semantic matches.
 - The bundled database is sample data, not a production retail warehouse.
 - Confidence is a workflow heuristic based on retrieval, SQL success, and repairs; it is not a calibrated probability.
-- Generated SQL should remain read-only before the project is connected to a non-sample database.
+- SQLite connections enable `PRAGMA query_only`, so generated SQL cannot mutate the source database.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the development and pull-request workflow.
