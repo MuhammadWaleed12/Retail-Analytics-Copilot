@@ -71,23 +71,57 @@ The graph routes questions based on type:
 - **sql**: Database-only questions → NL-to-SQL → Executor → Synthesizer
 - **hybrid**: Questions requiring both → Retriever → Planner → NL-to-SQL → Executor → Synthesizer
 
-## DSPy Optimization
+## Evaluation and optimization status
 
-**Optimized Module**: NL-to-SQL converter
+`optimize_dspy.py` is an experimental BootstrapFewShot script, not a reproducible
+benchmark. It contains **three training examples** and uses those same three
+examples for its before/after evaluation. Its metric counts queries that execute
+without an error; it does not compare returned values with expected answers.
+A query can execute successfully and still answer the wrong question.
 
-**Metric**: Valid SQL generation rate (SQL executes without syntax errors)
+The script also needs integration work before its results can be relied on:
+`NLToSQL.forward()` returns a DSPy prediction with a `sql_query` field, while
+`evaluate_sql_module()` currently passes that prediction directly to string
+cleanup. The script does not save its compiled module, and the CLI does not load
+an optimized artifact. Running the CLI therefore does not demonstrate use of a
+trained optimizer.
 
-**Before Optimization**: ~60% valid SQL rate on test set
-**After Optimization**: ~85% valid SQL rate using BootstrapFewShot with 20 examples
+The previously stated 60% → 85% accuracy improvement and 200 ms latency cost are
+not established by a reproducible benchmark in this repository and have been
+removed. No model-quality or latency improvement is claimed here.
 
-**Approach**: 
-- Created training set of 20 NL→SQL pairs covering common patterns (joins, aggregations, date filters, category filters)
-- Used BootstrapFewShot to generate few-shot examples
-- Improved prompt structure with explicit schema formatting and constraint handling
+### Inspect a local agent run
 
-**Trade-offs**:
-- Optimization increases latency slightly (~200ms) but significantly improves accuracy
-- Repair loop handles remaining edge cases
+After completing setup and starting Ollama, run the six bundled questions into a
+fresh output file:
+
+```bash
+python run_agent_hybrid.py \
+    --batch sample_questions_hybrid_eval.jsonl \
+    --out local-results.jsonl
+```
+
+Inspect each result's answer, SQL, citations, and explanation against the source
+database and documents. The six questions are smoke-test inputs: they contain
+format hints but no expected answers, so processing all six is not an accuracy
+score. The committed `outputs_hybrid.jsonl` is an example output, not evidence
+that the current code and model passed a fresh evaluation.
+
+For a meaningful before/after comparison:
+
+1. Fix and validate the optimizer integration, then save and explicitly load the
+   compiled module for the optimized run.
+2. Keep training questions separate from held-out evaluation questions and add
+   independently checked expected answers to the latter.
+3. Record the Git commit, dependency versions, model tag/digest and settings,
+   dataset version, hardware, and whether latency includes model warm-up.
+4. Report answer correctness separately from SQL execution success, retrieval
+   relevance, and citation support. Count errors rather than dropping them.
+5. Run both configurations on the same held-out inputs and publish the per-case
+   results, denominators, and latency measurements.
+
+The fast unit suite below checks deterministic tool behavior. It does not measure
+LLM answer quality or optimizer performance.
 
 ## Assumptions & Trade-offs
 
