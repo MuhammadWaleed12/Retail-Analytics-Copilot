@@ -68,10 +68,11 @@ class TFIDFRetriever:
         # Build vocabulary
         self.vocab = {term: idx for idx, term in enumerate(sorted(set(doc_freq.keys())))}
         
-        # Calculate IDF
+        # Smooth both counts and offset IDF so every indexed term keeps a
+        # positive weight, including terms present in all or all but one chunk.
         num_docs = len(self.chunks)
         self.idf = {
-            term: math.log(num_docs / (doc_freq[term] + 1))
+            term: math.log((1 + num_docs) / (1 + doc_freq[term])) + 1
             for term in self.vocab.keys()
         }
         
