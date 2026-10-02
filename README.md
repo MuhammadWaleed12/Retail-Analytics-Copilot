@@ -229,6 +229,10 @@ The evaluation file contains six end-to-end questions covering:
 ## Limitations
 
 - TF-IDF is lexical retrieval and will miss some semantic matches.
+- Retrieval returns at most `top_k` chunks with positive lexical similarity;
+  empty or unknown-term queries return no chunks. Unmatched documents are not
+  added merely to fill the result count. A positive score indicates term overlap,
+  not proof that a document supports the answer.
 - The bundled database is sample data, not a production retail warehouse.
 - Confidence is a workflow heuristic based on retrieval, SQL success, and repairs; it is not a calibrated probability.
 - SQLite connections enable `PRAGMA query_only`, so generated SQL cannot mutate the source database.

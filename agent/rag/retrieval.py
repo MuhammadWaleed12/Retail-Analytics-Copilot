@@ -109,10 +109,11 @@ class TFIDFRetriever:
         
         Args:
             query: Query string
-            top_k: Number of chunks to return
+            top_k: Maximum number of matching chunks to return
         
         Returns:
-            List of Chunk objects sorted by relevance score
+            List of Chunk objects with positive scores, sorted by relevance.
+            Returns an empty list when no indexed terms match the query.
         """
         query_tokens = self._tokenize(query)
         query_term_freq = Counter(query_tokens)
@@ -129,6 +130,8 @@ class TFIDFRetriever:
         scored_chunks = []
         for idx, chunk_vector in enumerate(self.chunk_vectors):
             score = self._cosine_similarity(query_vector, chunk_vector)
+            if score <= 0.0:
+                continue
             chunk = self.chunks[idx]
             chunk.score = score
             scored_chunks.append(chunk)
