@@ -150,9 +150,9 @@ class TFIDFRetrieverTests(unittest.TestCase):
         results = retriever.retrieve("What is the refund policy?", top_k=2)
 
         self.assertEqual(len(retriever.chunks), 3)
-        self.assertEqual(len(results), 2)
+        self.assertEqual(len(results), 1)
         self.assertEqual(results[0].source, "policy")
-        self.assertGreater(results[0].score, results[1].score)
+        self.assertGreater(results[0].score, 0.0)
 
     def test_handles_tokenization_unknown_terms_and_empty_directory(self):
         docs = self.directory / "docs"
@@ -164,7 +164,7 @@ class TFIDFRetrieverTests(unittest.TestCase):
             retriever._tokenize("Hello, RETAIL-world!"),
             ["hello", "retail", "world"],
         )
-        self.assertEqual(retriever.retrieve("unknown", top_k=1)[0].score, 0.0)
+        self.assertEqual(retriever.retrieve("unknown", top_k=1), [])
 
         empty_docs = self.directory / "empty"
         empty_docs.mkdir()
