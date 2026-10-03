@@ -112,8 +112,9 @@ class TFIDFRetriever:
             top_k: Maximum number of matching chunks to return
         
         Returns:
-            List of Chunk objects with positive scores, sorted by relevance.
-            Returns an empty list when no indexed terms match the query.
+            Independent Chunk objects with positive scores, sorted by relevance.
+            Returns an empty list when no indexed terms match the query. Later
+            queries and caller edits do not mutate earlier results or the index.
         """
         query_tokens = self._tokenize(query)
         query_term_freq = Counter(query_tokens)
@@ -133,13 +134,10 @@ class TFIDFRetriever:
             if score <= 0.0:
                 continue
             chunk = self.chunks[idx]
-            chunk.score = score
-            scored_chunks.append(chunk)
+            scored_chunks.append(Chunk(chunk.chunk_id, chunk.content, chunk.source, score))
         
         # Sort by score and return top-k
         scored_chunks.sort(key=lambda x: x.score, reverse=True)
         return scored_chunks[:top_k]
-
-
 
 
