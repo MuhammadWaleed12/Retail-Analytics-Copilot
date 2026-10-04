@@ -33,10 +33,8 @@ class TFIDFRetriever:
     
     def _load_documents(self):
         """Load and chunk documents."""
-        chunk_idx = 0
-        
-        for doc_file in self.docs_dir.glob("*.md"):
-            content = doc_file.read_text()
+        for doc_file in sorted(self.docs_dir.glob("*.md"), key=lambda path: path.name):
+            content = doc_file.read_text(encoding="utf-8")
             source = doc_file.stem
             
             # Split into paragraphs (chunks)
@@ -45,7 +43,6 @@ class TFIDFRetriever:
             for para_idx, para in enumerate(paragraphs):
                 chunk_id = f"{source}::chunk{para_idx}"
                 self.chunks.append(Chunk(chunk_id, para, source))
-                chunk_idx += 1
     
     def _tokenize(self, text: str) -> List[str]:
         """Simple tokenization."""
@@ -136,8 +133,7 @@ class TFIDFRetriever:
             chunk = self.chunks[idx]
             scored_chunks.append(Chunk(chunk.chunk_id, chunk.content, chunk.source, score))
         
-        # Sort by score and return top-k
-        scored_chunks.sort(key=lambda x: x.score, reverse=True)
+        # Keep equal-score results reproducible across platforms and runs.
+        scored_chunks.sort(key=lambda chunk: (-chunk.score, chunk.chunk_id))
         return scored_chunks[:top_k]
-
 

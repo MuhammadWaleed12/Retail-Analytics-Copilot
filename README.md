@@ -233,6 +233,8 @@ The evaluation file contains six end-to-end questions covering:
   empty or unknown-term queries return no chunks. Unmatched documents are not
   added merely to fill the result count. A positive score indicates term overlap,
   not proof that a document supports the answer.
+- Markdown documents are indexed by filename and equal-score results use chunk ID
+  as a stable tie-breaker, keeping chunk IDs, ranking, and citations reproducible.
 - The bundled database is sample data, not a production retail warehouse.
 - Confidence is a workflow heuristic based on retrieval, SQL success, and repairs; it is not a calibrated probability.
 - SQLite connections enable `PRAGMA query_only`, so generated SQL cannot mutate the source database.
