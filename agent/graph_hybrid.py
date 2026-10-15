@@ -8,6 +8,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 import dspy
 from agent.dspy_signatures import Router, NLToSQL, Synthesizer
+from agent.repair import RepairTarget, choose_repair_target
 from agent.tools.sqlite_tool import SQLiteTool
 from agent.rag.retrieval import TFIDFRetriever
 
@@ -28,6 +29,7 @@ class AgentState(TypedDict):
     explanation: str
     confidence: float
     repair_count: int
+    repair_target: RepairTarget
     trace: list
 
 
@@ -411,10 +413,16 @@ def create_hybrid_agent(db_path: str, docs_dir: str, model_name: str = "phi3.5:3
     def repair_node(state: AgentState) -> AgentState:
         """Repair by regenerating SQL or answer."""
         repair_count = state.get("repair_count", 0)
+        sql_error = state.get("sql_error", "")
+        sql_query = state.get("sql_query", "")
+        state["repair_target"] = choose_repair_target(
+            has_sql_error=bool(sql_error),
+            has_sql_query=bool(sql_query),
+            repair_count=repair_count,
+        )
         state["repair_count"] = repair_count + 1
 
-        # If SQL error, clear SQL to force regeneration
-        sql_error = state.get("sql_error", "")
+        # SQL failures either retry a corrected query or regenerate it.
         if sql_error:
             state["trace"].append(f"Repair {repair_count + 1}: SQL error detected: {sql_error[:100]}")
 
@@ -422,7 +430,6 @@ def create_hybrid_agent(db_path: str, docs_dir: str, model_name: str = "phi3.5:3
             # For second attempt, force regeneration
             if repair_count == 0:
                 # Try to fix common SQL errors quickly
-                sql_query = state.get("sql_query", "")
                 if sql_query:
                     # Remove DSPy output artifacts
                     sql_query = re.sub(r':\d+\s*\n', '\n', sql_query)
@@ -595,12 +602,13 @@ def create_hybrid_agent(db_path: str, docs_dir: str, model_name: str = "phi3.5:3
     
     # Repair -> Back to appropriate node
     def route_after_repair(state: AgentState) -> str:
-        return "nl_to_sql" if state.get("sql_error") else "synthesizer"
+        return state["repair_target"]
     
     workflow.add_conditional_edges(
         "repair",
         route_after_repair,
         {
+            "executor": "executor",
             "nl_to_sql": "nl_to_sql",
             "synthesizer": "synthesizer"
         }

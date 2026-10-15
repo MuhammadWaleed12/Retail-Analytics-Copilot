@@ -199,6 +199,7 @@ def main(batch: str, out: str, db: str, docs: str, model: str):
                 "explanation": "",
                 "confidence": 0.0,
                 "repair_count": 0,
+                "repair_target": "synthesizer",
                 "trace": []
             }
             

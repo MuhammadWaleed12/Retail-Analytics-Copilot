@@ -63,7 +63,7 @@ The LangGraph agent implements a hybrid RAG + SQL architecture with the followin
 4. **NL→SQL** (DSPy): Generates SQLite queries using schema introspection
 5. **Executor**: Executes SQL and captures results/errors
 6. **Synthesizer** (DSPy): Produces typed answers matching format_hint with citations
-7. **Repair Loop**: Up to 2 repair iterations on SQL errors or invalid outputs
+7. **Repair Loop**: Up to 2 repair iterations on SQL errors or invalid outputs; the first SQL repair re-executes the corrected query, then a second failure regenerates SQL
 8. **Confidence Calculator**: Computes confidence based on retrieval scores, SQL success, and repair count
 
 The graph routes questions based on type:
@@ -212,7 +212,7 @@ Run the fast unit suite (no Ollama service required):
 python -m unittest discover -s tests -v
 ```
 
-The unit tests cover SQLite schema discovery, query execution, read-only mutation rejection, and errors, plus document loading, ranking, unknown terms, and empty-document behavior. GitHub Actions runs them on Python 3.10, 3.11, and 3.12.
+The unit tests cover SQLite schema discovery, query execution, read-only mutation rejection, and errors; document loading, ranking, unknown terms, and empty-document behavior; and repair-loop routing for corrected and regenerated SQL. GitHub Actions runs them on Python 3.10, 3.11, and 3.12.
 
 The evaluation file contains six end-to-end questions covering:
 
