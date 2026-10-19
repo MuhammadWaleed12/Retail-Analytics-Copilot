@@ -29,6 +29,10 @@ env.bak/
 venv.bak/
 
 backend/.venv/
+.venv/
+
+# Generated DSPy state
+artifacts/
 
 # IDE
 .vscode/

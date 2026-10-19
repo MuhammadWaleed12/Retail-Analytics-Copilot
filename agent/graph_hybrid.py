@@ -33,7 +33,12 @@ class AgentState(TypedDict):
     trace: list
 
 
-def create_hybrid_agent(db_path: str, docs_dir: str, model_name: str = "phi3.5:3.8b-mini-instruct-q4_K_M"):
+def create_hybrid_agent(
+    db_path: str,
+    docs_dir: str,
+    model_name: str = "phi3.5:3.8b-mini-instruct-q4_K_M",
+    optimized_nl_to_sql_path: str | None = None,
+):
     """Create and configure the hybrid agent graph."""
     
     # Initialize DSPy with Ollama
@@ -70,6 +75,8 @@ def create_hybrid_agent(db_path: str, docs_dir: str, model_name: str = "phi3.5:3
     # Initialize DSPy modules
     router = Router()
     nl_to_sql = NLToSQL()
+    if optimized_nl_to_sql_path:
+        nl_to_sql.load(optimized_nl_to_sql_path)
     synthesizer = Synthesizer()
     
     # Get schema once

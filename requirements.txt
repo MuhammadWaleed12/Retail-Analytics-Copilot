@@ -1,4 +1,4 @@
-dspy-ai>=2.4.0
+dspy-ai>=3.0.0,<4.0.0
 langgraph>=0.1.0
 langchain-core>=0.2.0
 langchain-ollama>=0.1.0
