@@ -137,7 +137,19 @@ def parse_answer(answer: str, format_hint: str):
 @click.option("--db", default="data/northwind.sqlite", help="Path to SQLite database")
 @click.option("--docs", default="docs", help="Path to docs directory")
 @click.option("--model", default="phi3.5:3.8b-mini-instruct-q4_K_M", help="Ollama model name")
-def main(batch: str, out: str, db: str, docs: str, model: str):
+@click.option(
+    "--optimized-nl-to-sql",
+    type=click.Path(exists=True, dir_okay=False),
+    help="DSPy state file produced by optimize_dspy.py",
+)
+def main(
+    batch: str,
+    out: str,
+    db: str,
+    docs: str,
+    model: str,
+    optimized_nl_to_sql: str | None,
+):
     """Run the hybrid agent on a batch of questions."""
     
     # Validate paths
@@ -158,7 +170,12 @@ def main(batch: str, out: str, db: str, docs: str, model: str):
     
     # Create agent
     console.print(f"[green]Initializing agent with model: {model}[/green]")
-    agent = create_hybrid_agent(str(db_path), str(docs_path), model)
+    agent = create_hybrid_agent(
+        str(db_path),
+        str(docs_path),
+        model,
+        optimized_nl_to_sql_path=optimized_nl_to_sql,
+    )
     
     # Load questions
     questions = []

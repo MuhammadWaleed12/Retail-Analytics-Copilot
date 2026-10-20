@@ -71,24 +71,37 @@ The graph routes questions based on type:
 - **sql**: Database-only questions → NL-to-SQL → Executor → Synthesizer
 - **hybrid**: Questions requiring both → Retriever → Planner → NL-to-SQL → Executor → Synthesizer
 
-## Evaluation and optimization status
+## Evaluation and optimization
 
-`optimize_dspy.py` is an experimental BootstrapFewShot script, not a reproducible
-benchmark. It contains **three training examples** and uses those same three
-examples for its before/after evaluation. Its metric counts queries that execute
-without an error; it does not compare returned values with expected answers.
-A query can execute successfully and still answer the wrong question.
+`optimize_dspy.py` compiles the NL-to-SQL module with three labeled examples and
+evaluates it before and after optimization on three separate questions. The
+held-out answers are independently checked against the bundled database:
+16,282 orders, 11 customers in Germany, and 8 discontinued products.
 
-The script also needs integration work before its results can be relied on:
-`NLToSQL.forward()` returns a DSPy prediction with a `sql_query` field, while
-`evaluate_sql_module()` currently passes that prediction directly to string
-cleanup. The script does not save its compiled module, and the CLI does not load
-an optimized artifact. Running the CLI therefore does not demonstrate use of a
-trained optimizer.
+The evaluator extracts `sql_query` from the DSPy prediction, executes it through
+the read-only SQLite tool, and compares the first returned value with the
+expected answer. Executable-but-wrong SQL therefore fails. Per-case outcomes and
+the full denominator are printed, including generation and execution errors.
 
-The previously stated 60% → 85% accuracy improvement and 200 ms latency cost are
-not established by a reproducible benchmark in this repository and have been
-removed. No model-quality or latency improvement is claimed here.
+With Ollama running, compile and save the optimized DSPy state:
+
+```bash
+python optimize_dspy.py --output artifacts/nl_to_sql.json
+```
+
+Use that exact state in an agent run:
+
+```bash
+python run_agent_hybrid.py \
+    --batch sample_questions_hybrid_eval.jsonl \
+    --out local-results.jsonl \
+    --optimized-nl-to-sql artifacts/nl_to_sql.json
+```
+
+Generated state is excluded from Git because it depends on the local model and
+DSPy version. The three-question holdout is a transparent integration smoke
+test, not a statistically meaningful model-quality benchmark. No accuracy or
+latency improvement is claimed without publishing a reproducible run.
 
 ### Inspect a local agent run
 
@@ -107,17 +120,15 @@ format hints but no expected answers, so processing all six is not an accuracy
 score. The committed `outputs_hybrid.jsonl` is an example output, not evidence
 that the current code and model passed a fresh evaluation.
 
-For a meaningful before/after comparison:
+For a broader, meaningful before/after comparison:
 
-1. Fix and validate the optimizer integration, then save and explicitly load the
-   compiled module for the optimized run.
-2. Keep training questions separate from held-out evaluation questions and add
-   independently checked expected answers to the latter.
-3. Record the Git commit, dependency versions, model tag/digest and settings,
+1. Expand the held-out set beyond the three bundled scalar questions without
+   reusing optimization examples.
+2. Record the Git commit, dependency versions, model tag/digest and settings,
    dataset version, hardware, and whether latency includes model warm-up.
-4. Report answer correctness separately from SQL execution success, retrieval
+3. Report answer correctness separately from SQL execution success, retrieval
    relevance, and citation support. Count errors rather than dropping them.
-5. Run both configurations on the same held-out inputs and publish the per-case
+4. Run both configurations on the same held-out inputs and publish the per-case
    results, denominators, and latency measurements.
 
 The fast unit suite below checks deterministic tool behavior. It does not measure
@@ -212,7 +223,7 @@ Run the fast unit suite (no Ollama service required):
 python -m unittest discover -s tests -v
 ```
 
-The unit tests cover SQLite schema discovery, query execution, read-only mutation rejection, and errors; document loading, ranking, unknown terms, and empty-document behavior; and repair-loop routing for corrected and regenerated SQL. GitHub Actions runs them on Python 3.10, 3.11, and 3.12.
+The unit tests cover SQLite schema discovery, query execution, read-only mutation rejection, and errors; document loading, ranking, unknown terms, and empty-document behavior; repair-loop routing for corrected and regenerated SQL; and semantic SQL evaluation, including executable-but-wrong queries. GitHub Actions runs them on Python 3.10, 3.11, and 3.12.
 
 The evaluation file contains six end-to-end questions covering:
 
