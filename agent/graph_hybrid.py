@@ -8,6 +8,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 import dspy
 from agent.dspy_signatures import Router, NLToSQL, Synthesizer
+from agent.output_validation import matches_format_hint
 from agent.repair import RepairTarget, choose_repair_target
 from agent.tools.sqlite_tool import SQLiteTool
 from agent.rag.retrieval import TFIDFRetriever
@@ -408,11 +409,12 @@ def create_hybrid_agent(
         if not state.get("final_answer"):
             return "repair"
         
-        # Check format hint compliance (basic check)
+        # Use the same contract as the validation node so malformed floats,
+        # lists, and objects all enter the repair loop consistently.
         format_hint = state.get("format_hint", "")
         final_answer = state.get("final_answer", "")
-        
-        if "int" in format_hint.lower() and not final_answer.strip().isdigit():
+
+        if not matches_format_hint(final_answer, format_hint):
             return "repair"
         
         return "end"
@@ -489,37 +491,14 @@ def create_hybrid_agent(
             state["trace"].append("Validation: Empty answer")
             return state
 
-        # Basic validation based on format_hint
-        is_valid = True
-
-        if format_hint == "int":
-            # Check if it's a number
-            if not str(final_answer).strip().replace('-', '').isdigit():
-                is_valid = False
-                state["trace"].append(f"Validation failed: Expected int, got {type(final_answer)}")
-
-        elif format_hint == "float":
-            # Check if it's a number
-            try:
-                float(final_answer)
-            except:
-                is_valid = False
-                state["trace"].append(f"Validation failed: Expected float, got {final_answer}")
-
-        elif format_hint.startswith("{") and format_hint.endswith("}"):
-            # Should be a string that looks like JSON or a dict
-            if not (isinstance(final_answer, dict) or (isinstance(final_answer, str) and "{" in final_answer)):
-                is_valid = False
-                state["trace"].append(f"Validation failed: Expected dict-like, got {type(final_answer)}")
-
-        elif format_hint.startswith("list["):
-            # Should be a list or string that looks like JSON array
-            if not (isinstance(final_answer, list) or (isinstance(final_answer, str) and "[" in final_answer)):
-                is_valid = False
-                state["trace"].append(f"Validation failed: Expected list, got {type(final_answer)}")
+        is_valid = matches_format_hint(final_answer, format_hint)
 
         if is_valid:
             state["trace"].append("Validation: Output format OK")
+        else:
+            state["trace"].append(
+                f"Validation failed: Expected {format_hint}, got {final_answer!r}"
+            )
 
         return state
 

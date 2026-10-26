@@ -223,7 +223,7 @@ Run the fast unit suite (no Ollama service required):
 python -m unittest discover -s tests -v
 ```
 
-The unit tests cover SQLite schema discovery, query execution, read-only mutation rejection, and errors; document loading, ranking, unknown terms, and empty-document behavior; repair-loop routing for corrected and regenerated SQL; and semantic SQL evaluation, including executable-but-wrong queries. GitHub Actions runs them on Python 3.10, 3.11, and 3.12.
+The unit tests cover SQLite schema discovery, query execution, read-only mutation rejection, and errors; document loading, ranking, unknown terms, and empty-document behavior; repair-loop routing for corrected and regenerated SQL; strict structured-output validation; and semantic SQL evaluation, including executable-but-wrong queries. GitHub Actions runs them on Python 3.10, 3.11, and 3.12.
 
 The evaluation file contains six end-to-end questions covering:
 
