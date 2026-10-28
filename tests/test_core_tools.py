@@ -132,6 +132,61 @@ class SQLiteToolTests(unittest.TestCase):
         self.assertEqual(columns, [])
         self.assertIn("no such table", error)
 
+    def test_rejects_oversized_result_sets(self):
+        database = self.directory / "test.sqlite"
+        create_database(database)
+        tool = SQLiteTool(str(database), max_rows=1)
+
+        rows, columns, error = tool.execute_query(
+            "SELECT id, total FROM Orders ORDER BY id"
+        )
+
+        self.assertEqual(rows, [])
+        self.assertEqual(columns, ["id", "total"])
+        self.assertEqual(
+            error,
+            "Query returned more than 1 rows; add filters or LIMIT",
+        )
+        self.assertEqual(
+            tool.execute_query("SELECT id, total FROM Orders ORDER BY id LIMIT 1"),
+            ([{"id": 1, "total": 12.5}], ["id", "total"], None),
+        )
+
+    def test_interrupts_queries_that_exceed_instruction_budget(self):
+        database = self.directory / "test.sqlite"
+        create_database(database)
+        tool = SQLiteTool(
+            str(database),
+            max_vm_steps=1_000,
+            progress_interval=100,
+        )
+
+        rows, columns, error = tool.execute_query(
+            "WITH RECURSIVE counter(value) AS ("
+            "SELECT 1 UNION ALL SELECT value + 1 FROM counter"
+            ") SELECT SUM(value) FROM counter"
+        )
+
+        self.assertEqual((rows, columns), ([], []))
+        self.assertEqual(
+            error,
+            "Query execution interrupted after exceeding the "
+            "1000-instruction budget",
+        )
+
+    def test_validates_query_limits(self):
+        database = self.directory / "test.sqlite"
+        create_database(database)
+
+        for arguments, message in (
+            ({"max_rows": 0}, "max_rows must be at least 1"),
+            ({"max_vm_steps": 0}, "max_vm_steps must be at least 1"),
+            ({"progress_interval": 0}, "progress_interval must be at least 1"),
+        ):
+            with self.subTest(arguments=arguments):
+                with self.assertRaisesRegex(ValueError, message):
+                    SQLiteTool(str(database), **arguments)
+
 
 class TFIDFRetrieverTests(unittest.TestCase):
     def setUp(self):

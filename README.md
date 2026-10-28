@@ -223,7 +223,7 @@ Run the fast unit suite (no Ollama service required):
 python -m unittest discover -s tests -v
 ```
 
-The unit tests cover SQLite schema discovery, query execution, read-only mutation rejection, and errors; document loading, ranking, unknown terms, and empty-document behavior; repair-loop routing for corrected and regenerated SQL; strict structured-output validation; and semantic SQL evaluation, including executable-but-wrong queries. GitHub Actions runs them on Python 3.10, 3.11, and 3.12.
+The unit tests cover SQLite schema discovery, query execution, read-only mutation rejection, bounded result sets, instruction-budget interruption, and errors; document loading, ranking, unknown terms, and empty-document behavior; repair-loop routing for corrected and regenerated SQL; strict structured-output validation; and semantic SQL evaluation, including executable-but-wrong queries. GitHub Actions runs them on Python 3.10, 3.11, and 3.12.
 
 The evaluation file contains six end-to-end questions covering:
 
@@ -249,5 +249,6 @@ The evaluation file contains six end-to-end questions covering:
 - The bundled database is sample data, not a production retail warehouse.
 - Confidence is a workflow heuristic based on retrieval, SQL success, and repairs; it is not a calibrated probability.
 - SQLite connections enable `PRAGMA query_only`, so generated SQL cannot mutate the source database.
+- Model-generated SQL is limited to 1,000 returned rows and a configurable SQLite instruction budget. Oversized or runaway queries return explicit errors that can enter the repair loop instead of consuming unbounded resources.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the development and pull-request workflow.
