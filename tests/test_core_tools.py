@@ -121,6 +121,20 @@ class SQLiteToolTests(unittest.TestCase):
             [{"count": 2}],
         )
 
+    def test_rejects_database_attachment_without_creating_file(self):
+        database = self.directory / "test.sqlite"
+        attached_database = self.directory / "attached.sqlite"
+        create_database(database)
+        tool = SQLiteTool(str(database))
+
+        rows, columns, error = tool.execute_query(
+            f"ATTACH DATABASE '{attached_database}' AS external"
+        )
+
+        self.assertEqual((rows, columns), ([], []))
+        self.assertIn("authorized", error.lower())
+        self.assertFalse(attached_database.exists())
+
     def test_reports_invalid_sql(self):
         database = self.directory / "test.sqlite"
         create_database(database)

@@ -29,9 +29,24 @@ class SQLiteTool:
         self.progress_interval = progress_interval
 
     def _connect(self) -> sqlite3.Connection:
-        """Open a connection that cannot mutate the source database."""
-        conn = sqlite3.connect(self.db_path)
+        """Open a connection that cannot mutate or attach databases."""
+        database_uri = f"{self.db_path.resolve().as_uri()}?mode=ro"
+        conn = sqlite3.connect(database_uri, uri=True)
         conn.execute("PRAGMA query_only = ON")
+
+        def deny_database_attachment(
+            action_code: int,
+            _argument_one: str | None,
+            _argument_two: str | None,
+            _database_name: str | None,
+            _trigger_name: str | None,
+        ) -> int:
+            """Prevent queries from escaping into additional database files."""
+            if action_code in {sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH}:
+                return sqlite3.SQLITE_DENY
+            return sqlite3.SQLITE_OK
+
+        conn.set_authorizer(deny_database_attachment)
         return conn
     
     def get_schema(self) -> str:

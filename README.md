@@ -248,7 +248,7 @@ The evaluation file contains six end-to-end questions covering:
   as a stable tie-breaker, keeping chunk IDs, ranking, and citations reproducible.
 - The bundled database is sample data, not a production retail warehouse.
 - Confidence is a workflow heuristic based on retrieval, SQL success, and repairs; it is not a calibrated probability.
-- SQLite connections enable `PRAGMA query_only`, so generated SQL cannot mutate the source database.
+- SQLite connections open the source database in read-only mode, enable `PRAGMA query_only`, and deny `ATTACH`/`DETACH`, so generated SQL cannot mutate the source database or create sidecar databases.
 - Model-generated SQL is limited to 1,000 returned rows and a configurable SQLite instruction budget. Oversized or runaway queries return explicit errors that can enter the repair loop instead of consuming unbounded resources.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the development and pull-request workflow.
